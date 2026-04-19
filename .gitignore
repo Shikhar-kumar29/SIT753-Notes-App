@@ -1,0 +1,6 @@
+node_modules/
+dist/
+build_artefact.zip
+staging_env/
+production_release.zip
+.env
