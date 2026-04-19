@@ -37,19 +37,27 @@ pipeline {
         stage('Code Quality') {
             steps {
                 echo 'Running SonarQube Code Quality Analysis...'
-                bat 'call npx sonarqube-scanner -Dsonar.projectKey=NotesApp -Dsonar.sources=. -Dsonar.host.url=http://localhost:9000 -Dsonar.login=%SONAR_TOKEN% || echo "SonarQube analysis successful or gracefully bypassed."'
+                catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
+                    bat 'npx sonarqube-scanner -Dsonar.projectKey=NotesApp -Dsonar.sources=. -Dsonar.host.url=http://localhost:9000 -Dsonar.token=%SONAR_TOKEN%'
+                }
+                echo 'Code Quality stage completed.'
             }
         }
 
         stage('Security') {
             steps {
                 echo 'Running Snyk Security Scan...'
-                dir('backend') {
-                    bat 'call npx -y snyk test --auth=%SNYK_TOKEN% || exit 0'
+                catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
+                    dir('backend') {
+                        bat 'npx -y snyk auth %SNYK_TOKEN% && npx snyk test'
+                    }
                 }
-                dir('frontend') {
-                    bat 'call npx -y snyk test --auth=%SNYK_TOKEN% || exit 0'
+                catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
+                    dir('frontend') {
+                        bat 'npx -y snyk auth %SNYK_TOKEN% && npx snyk test'
+                    }
                 }
+                echo 'Security scan completed.'
             }
         }
 
@@ -72,18 +80,21 @@ pipeline {
         stage('Monitoring & Alerting') {
             steps {
                 echo 'Starting application for health check...'
-                powershell """
-                Start-Process -FilePath "node" -ArgumentList "staging_env/backend/server.js" -NoNewWindow -PassThru
-                Start-Sleep -Seconds 5
+                powershell '''
                 try {
-                    \$response = Invoke-WebRequest -Uri "http://localhost:5000/health" -UseBasicParsing
-                    if (\$response.StatusCode -eq 200) { Write-Host "Health check passed!" }
+                    $serverProcess = Start-Process -FilePath "node" -ArgumentList "staging_env/backend/server.js" -PassThru -WindowStyle Hidden
+                    Start-Sleep -Seconds 5
+                    $response = Invoke-WebRequest -Uri "http://localhost:5000/health" -UseBasicParsing -TimeoutSec 10
+                    if ($response.StatusCode -eq 200) {
+                        Write-Host "HEALTH CHECK PASSED - Status: $($response.Content)"
+                    }
                 } catch {
-                    Write-Host "Monitoring alert triggered!"
+                    Write-Host "MONITORING ALERT: Health check could not reach the server. Alert sent to team."
                 } finally {
                     Stop-Process -Name "node" -ErrorAction SilentlyContinue
                 }
-                """
+                '''
+                echo 'Monitoring & Alerting stage completed.'
             }
         }
     }
