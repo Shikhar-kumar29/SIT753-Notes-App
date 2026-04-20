@@ -1,29 +1,35 @@
 version: '3.8'
 
 services:
-  # MongoDB Database
   mongodb:
     image: mongo:latest
+    container_name: notes-mongodb
     ports:
       - "27017:27017"
     networks:
       - notes-network
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
-  # Backend Service
   backend:
-    build: ./backend
+    image: notes-backend:latest
+    container_name: notes-backend
     ports:
       - "5000:5000"
     environment:
-      - MONGO_URI=mongodb://mongodb:27017/notes_db
+      - MONGO_URI=mongodb://notes-mongodb:27017/notes_db
+      - PORT=5000
     depends_on:
       - mongodb
     networks:
       - notes-network
 
-  # Frontend Service
   frontend:
-    build: ./frontend
+    image: notes-frontend:latest
+    container_name: notes-frontend
     ports:
       - "3000:80"
     depends_on:
