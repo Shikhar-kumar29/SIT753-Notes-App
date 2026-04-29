@@ -32,12 +32,14 @@ function App() {
   const createNote = async () => {
     if (!newNote.title || !newNote.content) return;
     try {
-      const res = await axios.post(API_BASE, { ...newNote, folder: selectedFolder });
+      const res = await axios.post(API_BASE, newNote);
       setNotes([...notes, res.data]);
       setNewNote({ title: '', content: '', folder: 'General' });
       setIsEditing(false);
+      setSearch(''); // Clear search to show new note
     } catch (err) {
       console.error('Error creating note:', err);
+      alert('Failed to save note. Please check if the backend is running.');
     }
   };
 

@@ -51,12 +51,12 @@ pipeline {
         stage('Security') {
             steps {
                 echo 'Running Snyk Security Scan...'
-                catchError(buildResult: 'SUCCESS', stageResult: 'SUCCESS') {
+                catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
                     dir('backend') {
                         bat 'npx -y snyk auth %SNYK_TOKEN% && npx snyk test'
                     }
                 }
-                catchError(buildResult: 'SUCCESS', stageResult: 'SUCCESS') {
+                catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
                     dir('frontend') {
                         bat 'npx -y snyk auth %SNYK_TOKEN% && npx snyk test'
                     }
